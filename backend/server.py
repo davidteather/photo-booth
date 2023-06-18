@@ -1,10 +1,13 @@
 import cv2
 import gphoto2 as gp
 import numpy as np
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, request, abort
 import threading
 import os
 from storage import PhotoStorage
+from flask_bcrypt import Bcrypt
+import logging
+from dotenv import load_dotenv
 
 ps = PhotoStorage()
 app = Flask(__name__)
@@ -13,9 +16,25 @@ camera = gp.Camera()
 camera.init(context)
 settings_lock = threading.Lock()
 camera_lock = threading.Lock()
+logger = logging.getLogger('werkzeug')
+bcrypt = Bcrypt(app)
+load_dotenv()
 
 if not os.path.exists('images'):
     os.mkdir('images')
+
+# Shared Password for all endpoints, goal is to prevent random people on same network from messing with the camera
+# This isn't the most secure way to do this, but it's good enough for this project
+HASHED_PASSWORD = bcrypt.generate_password_hash(os.getenv('APP_PASSWORD')).decode('utf-8')
+
+
+@app.before_request
+def check_password():
+    # Check for password parameter in the URL
+    password = request.args.get('password')
+    if password is None or not bcrypt.check_password_hash(HASHED_PASSWORD, password):
+        # Return a 401 status if password is incorrect or not provided
+        abort(401)
 
 '''TODO:
 - Maybe take photo with RAW&JPEG 
@@ -96,7 +115,7 @@ def stream():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, threaded=True)
+    app.run(host='0.0.0.0', port=8000, threaded=True, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))
 
     change_config(camera, "imagesize", "Small")
     change_config(camera, "imagequality", "Standard")
