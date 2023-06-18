@@ -2,50 +2,80 @@ import cv2
 import gphoto2 as gp
 import numpy as np
 from flask import Flask, Response, jsonify
+import threading
+import os
+from storage import PhotoStorage
 
+ps = PhotoStorage()
 app = Flask(__name__)
 context = gp.Context()
 camera = gp.Camera()
 camera.init(context)
+settings_lock = threading.Lock()
+camera_lock = threading.Lock()
+
+if not os.path.exists('images'):
+    os.mkdir('images')
 
 '''TODO:
-- Global lock for camera settings
-- Capture image associating with ID locally
-    - Convert RAW to JPEG
-    - Save to local directory
-    - Return an ID of the image to the frontend
+- Maybe take photo with RAW&JPEG 
+  - Also evaluate if we even need RAW
+    - Only reason I'd want RAW is if we wanted to manually post process the images
+      after people take the photos
 - Route to text/email image
     - Associate photo ID with the places it was sent to
     - Also opt-in to promotional materials
 '''
 
 def change_config(camera, config_name, config_value):
-    config = camera.get_config()
-    target = config.get_child_by_name(config_name)
-    target.set_value(config_value)
-    camera.set_config(config)
+    with settings_lock:
+        config = camera.get_config()
+        target = config.get_child_by_name(config_name)
+        target.set_value(config_value)
+        camera.set_config(config)
 
 def capture(camera, context):
-    change_config(camera, "imagequality", "RAW")
-    file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE, context))
-    camera_file = gp.check_result(gp.gp_camera_file_get(camera, file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL, context))
-    gp.check_result(gp.gp_file_save(camera_file, file_path.name))
-    change_config(camera, "imagequality", "Standard")
-    return f'Captured and saved image at: {file_path.name}'
+    with camera_lock:
+        change_config(camera, "imagequality", "RAW")
+        file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE, context))
+        camera_file = gp.check_result(gp.gp_camera_file_get(camera, file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL, context))
+        change_config(camera, "imagequality", "Standard")
+
+    photo_id = ps.save(camera_file, file_path.name)
+    b = ps.get_photo_bytes(photo_id, ext='jpeg')
+    return {'photo_id': photo_id}
 
 @app.route('/capture', methods=['POST'])
 def take_photo():
-    change_config(camera, "imagesize", "Large")
-    message = capture(camera, context)
-    return jsonify({'message': message})
+    content = capture(camera, context)
+    return jsonify(content)
 
+@app.route('/photos/<photo_id>')
+def get_photo(photo_id):
+    return Response(ps.get_photo_bytes(photo_id, ext='jpeg'), mimetype='image/jpeg')
+
+@app.route('/send', methods=['POST'])
+def send_photo():
+    content = request.json
+    photo_ids = content['photo_ids']
+    emails = content['emails']
+    phones = content['phones']
+    promotional_consent = content['promotional_consent']
+
+    for photo_id in photo_ids:
+        ps.add_emails(photo_id, emails)
+        ps.add_phones(photo_id, phones)
+
+    # TODO: Send emails and texts
+
+    return jsonify({'success': True})
+
+# Streaming/Preview
 def capture_streaming_frame():
-    change_config(camera, "imagesize", "Small")
-    change_config(camera, "imagequality", "Standard")
-
-    # Capture the preview
-    camera_file = gp.check_result(gp.gp_camera_capture_preview(camera, context))
-    file_data = gp.check_result(gp.gp_file_get_data_and_size(camera_file))
+    with camera_lock:
+        # Capture the preview
+        camera_file = gp.check_result(gp.gp_camera_capture_preview(camera, context))
+        file_data = gp.check_result(gp.gp_file_get_data_and_size(camera_file))
 
     # Convert the raw data to a numpy array and reshape for image display
     image = np.frombuffer(file_data, np.uint8)
@@ -67,3 +97,6 @@ def stream():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, threaded=True)
+
+    change_config(camera, "imagesize", "Small")
+    change_config(camera, "imagequality", "Standard")
