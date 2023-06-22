@@ -1,19 +1,32 @@
+import os
+USE_SIMULATED_CAMERA = os.getenv('USE_SIMULATED_CAMERA', 'false').lower() == 'true'
+
 import cv2
 import gphoto2 as gp
 import numpy as np
 from flask import Flask, Response, jsonify, request, abort
 import threading
-import os
 from storage import PhotoStorage
 from flask_bcrypt import Bcrypt
 import logging
 from dotenv import load_dotenv
+import imageio
+
 
 ps = PhotoStorage()
 app = Flask(__name__)
-context = gp.Context()
-camera = gp.Camera()
-camera.init(context)
+
+if USE_SIMULATED_CAMERA:
+    reader = imageio.get_reader('simulated.mp4', 'mp4')
+    frames = [frame for frame in reader]  # Load all frames into memory
+    num_frames = len(frames)
+    frame_counter = 0
+    context = None
+    camera = None
+else:
+    context = gp.Context()
+    camera = gp.Camera()
+    camera.init(context)
 settings_lock = threading.Lock()
 camera_lock = threading.Lock()
 logger = logging.getLogger('werkzeug')
@@ -26,7 +39,6 @@ if not os.path.exists('images'):
 # Shared Password for all endpoints, goal is to prevent random people on same network from messing with the camera
 # This isn't the most secure way to do this, but it's good enough for this project
 HASHED_PASSWORD = bcrypt.generate_password_hash(os.getenv('APP_PASSWORD')).decode('utf-8')
-
 
 @app.before_request
 def check_password():
@@ -54,6 +66,14 @@ def change_config(camera, config_name, config_value):
         camera.set_config(config)
 
 def capture(camera, context):
+    if USE_SIMULATED_CAMERA:
+        global frame_counter
+        # Capture the current frame
+        frame = frames[frame_counter % num_frames]
+        jpeg_frame = imageio.imwrite("<bytes>", frame, format='.jpg')
+        photo_id = ps.save(None, ".jpeg", simulated=jpeg_frame)  # Assuming ps.save takes bytes input
+        return {'photo_id': photo_id}
+
     with camera_lock:
         change_config(camera, "imagequality", "RAW")
         file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE, context))
@@ -91,6 +111,14 @@ def send_photo():
 
 # Streaming/Preview
 def capture_streaming_frame():
+    if USE_SIMULATED_CAMERA:
+        global frame_counter
+        # Convert frame to jpeg for streaming
+        frame = frames[frame_counter % num_frames]
+        jpeg_frame = imageio.imwrite("<bytes>", frame, format='.jpg')
+        frame_counter += 1
+        return jpeg_frame
+
     with camera_lock:
         # Capture the preview
         camera_file = gp.check_result(gp.gp_camera_capture_preview(camera, context))

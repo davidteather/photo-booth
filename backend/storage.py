@@ -21,11 +21,17 @@ class PhotoStorage:
                 self.db = json.load(f)
 
 
-    def save(self, camera_file, file_path):
+    def save(self, camera_file, file_path, simulated=None):
         photo_id = str(uuid.uuid4())
         path = f"{self.folder}/{photo_id}"
         ext = file_path.split('.')[-1]
-        gp.check_result(gp.gp_file_save(camera_file, f"{path}.{ext}"))
+
+        if simulated:
+            with open(f"{path}.{ext}", "wb") as f:
+                f.write(simulated)
+
+        else:
+            gp.check_result(gp.gp_file_save(camera_file, f"{path}.{ext}"))
 
         if ext == 'arw':
             convert_arw_to_jpeg(f"{path}.{ext}", f"{path}.jpeg")

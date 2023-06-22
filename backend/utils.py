@@ -1,4 +1,8 @@
-import rawpy
+import os
+USE_SIMULATED_CAMERA = os.getenv('USE_SIMULATED_CAMERA', 'false').lower() == 'true'
+if not USE_SIMULATED_CAMERA:
+    import rawpy
+   
 import imageio
 
 def convert_arw_to_jpeg(arw_path, jpeg_path):
