@@ -6,8 +6,9 @@ from utils import convert_arw_to_jpeg
 import os
 import time
 
+
 class PhotoStorage:
-    def __init__(self, folder='images', db='photos.json'):
+    def __init__(self, folder="images", db="photos.json"):
         self.lock = threading.Lock()
         self.folder = folder
         self.db_path = f"{folder}/{db}"
@@ -17,14 +18,13 @@ class PhotoStorage:
         if not os.path.exists(self.db_path):
             self.db = {}
         else:
-            with open(self.db_path, 'r') as f:
+            with open(self.db_path, "r") as f:
                 self.db = json.load(f)
-
 
     def save(self, camera_file, file_path, simulated=None):
         photo_id = str(uuid.uuid4())
         path = f"{self.folder}/{photo_id}"
-        ext = file_path.split('.')[-1]
+        ext = file_path.split(".")[-1]
 
         if simulated:
             with open(f"{path}.{ext}", "wb") as f:
@@ -33,20 +33,20 @@ class PhotoStorage:
         else:
             gp.check_result(gp.gp_file_save(camera_file, f"{path}.{ext}"))
 
-        if ext == 'arw':
+        if ext == "arw":
             convert_arw_to_jpeg(f"{path}.{ext}", f"{path}.jpeg")
 
         with self.lock:
             self.db[photo_id] = {
-                'path': path,
-                'ext': ext,
-                'emails': [],
-                'phones': [],
-                'taken_at': int(time.time()),
-                'promotional_consent': False,
+                "path": path,
+                "ext": ext,
+                "emails": [],
+                "phones": [],
+                "taken_at": int(time.time()),
+                "promotional_consent": False,
             }
 
-            with open(self.db_path, 'w+') as f:
+            with open(self.db_path, "w+") as f:
                 json.dump(self.db, f)
 
         return photo_id
@@ -56,21 +56,28 @@ class PhotoStorage:
         if not record:
             return None
 
-        with open(f"{record['path']}.{ext}", 'rb') as f:
+        with open(f"{record['path']}.{ext}", "rb") as f:
             return f.read()
 
     def add_emails(self, photo_id, emails):
         with self.lock:
-            self.db[photo_id]['emails'].extend(emails)
+            self.db[photo_id]["emails"].extend(emails)
 
-            with open(self.db_path, 'w+') as f:
+            with open(self.db_path, "w+") as f:
                 json.dump(self.db, f)
 
-    def add_phone(self, photo_id, phones):
+    def add_phones(self, photo_id, phones):
         with self.lock:
-            self.db[photo_id]['phones'].extend(phones)
+            self.db[photo_id]["phones"].extend(phones)
 
-            with open(self.db_path, 'w+') as f:
+            with open(self.db_path, "w+") as f:
+                json.dump(self.db, f)
+
+    def set_promotional(self, photo_id, promotional_consent):
+        with self.lock:
+            self.db[photo_id]["promotional_consent"] = promotional_consent
+
+            with open(self.db_path, "w+") as f:
                 json.dump(self.db, f)
 
     # TODO: Add maybe QR code to photo to link to discord bot or something?

@@ -1,5 +1,8 @@
 ---
-import MainApp from '../components/MainApp.svelte';
+import MainApp from "../components/MainApp.svelte";
+import Layout from "../layouts/Layout.astro";
 ---
 
-<MainApp client:load/>
+<Layout title="Photo Booth!">
+    <MainApp client:load />
+</Layout>

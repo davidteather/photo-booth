@@ -7,3 +7,6 @@ generate_ssl:
 
 get_simulated:
 	@echo "Mine is https://pixabay.com/videos/owl-animal-bird-nature-feather-18244/"
+
+dev:
+	USE_SIMULATED_CAMERA=true python3 server.py

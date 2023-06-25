@@ -4,16 +4,28 @@ import numpy as np
 import subprocess
 import io
 
+
 def change_config(camera, config_name, config_value):
     config = camera.get_config()
     target = config.get_child_by_name(config_name)
     target.set_value(config_value)
     camera.set_config(config)
 
+
 def capture(camera):
-    camera_file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE))
-    camera_file = gp.check_result(gp.gp_camera_file_get(camera, camera_file_path.folder, camera_file_path.name, gp.GP_FILE_TYPE_NORMAL))
+    camera_file_path = gp.check_result(
+        gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE)
+    )
+    camera_file = gp.check_result(
+        gp.gp_camera_file_get(
+            camera,
+            camera_file_path.folder,
+            camera_file_path.name,
+            gp.GP_FILE_TYPE_NORMAL,
+        )
+    )
     return gp.check_result(gp.gp_file_get_data_and_size(camera_file))
+
 
 def main():
     camera = gp.check_result(gp.gp_camera_new())
@@ -43,34 +55,45 @@ def main():
             cv2.imshow("Preview", image)
 
             # Check if spacebar is pressed
-            if cv2.waitKey(1) & 0xFF == ord(' '):
+            if cv2.waitKey(1) & 0xFF == ord(" "):
                 # Increase Resolution
                 change_config(camera, "imagequality", "RAW")
-                #change_config(camera, "imagesize", "Large") # if we're shooting in raw, don't think we need this bc it's JPEG size
+                # change_config(camera, "imagesize", "Large") # if we're shooting in raw, don't think we need this bc it's JPEG size
 
                 # Wait 3 seconds
                 cv2.waitKey(3000)
 
                 # Capture high quality image
-                file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE, context))
-                print('Captured image at:', file_path)
+                file_path = gp.check_result(
+                    gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE, context)
+                )
+                print("Captured image at:", file_path)
 
                 # Download the image
-                camera_file = gp.check_result(gp.gp_camera_file_get(camera, file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL, context))
+                camera_file = gp.check_result(
+                    gp.gp_camera_file_get(
+                        camera,
+                        file_path.folder,
+                        file_path.name,
+                        gp.GP_FILE_TYPE_NORMAL,
+                        context,
+                    )
+                )
                 gp.check_result(gp.gp_file_save(camera_file, file_path.name))
-                print('Image saved as:', file_path.name)
+                print("Image saved as:", file_path.name)
 
                 # Lower Resolution Again
                 change_config(camera, "imagesize", "Small")
-                #change_config(camera, "imagequality", "Standard")
+                # change_config(camera, "imagequality", "Standard")
 
-            elif cv2.waitKey(1) & 0xFF == ord('q'):
+            elif cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
     finally:
         # Release the camera
         cv2.destroyAllWindows()
         camera.exit(context)
+
 
 if __name__ == "__main__":
     main()
