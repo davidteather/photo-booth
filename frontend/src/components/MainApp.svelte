@@ -37,6 +37,9 @@
       on:nextStep={() => {
         currentStep = (currentStep + 1) % steps.length;
       }}
+      on:goToPreview={() => {
+        currentStep = 0;
+      }}
       on:error={(event) => {
         error = event.detail;
         showError = true;

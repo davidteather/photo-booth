@@ -53,13 +53,17 @@
         throw err;
       });
   }
+
+  function handleGoToPreviewClick() {
+    dispatch("goToPreview");
+  }
 </script>
 
 <div class="flex flex-col items-center">
   <div class="carousel w-4/5 mt-4">
     {#each photoUrls as url, i}
       <div id={`item${i}`} class="carousel-item w-full">
-        <img src={url} class="w-full" alt={`Your Photo ${i}`} />
+        <img src={url} class="w-full border-2 border-blue-300" alt={`Your Photo ${i}`} />
       </div>
     {/each}
   </div>
@@ -68,6 +72,13 @@
       <a href={`#item${i}`} class="btn btn-xs">{i + 1}</a>
     {/each}
   </div>
+
+  <button
+    on:click={handleGoToPreviewClick}
+    class="btn btn-lg btn-primary mt-4"
+  >
+    Add Another Photo
+  </button>
 
   <form on:submit={sendUserData} class="w-4/5 mx-auto mt-8 p-8">
     {#each emails as email, i}

@@ -5,3 +5,5 @@ flask
 rawpy
 Flask-Bcrypt
 python-dotenv
+twilio
+flask-cors

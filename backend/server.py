@@ -1,8 +1,21 @@
 import os
-import ssl
+from dotenv import load_dotenv
+load_dotenv()
+
 
 USE_SIMULATED_CAMERA = os.getenv("USE_SIMULATED_CAMERA", "false").lower() == "true"
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+AWS_IAM_USERNAME = os.getenv("AWS_IAM_USERNAME")
+AWS_SMTP_USERNAME = os.getenv("AWS_SMTP_USERNAME")
+AWS_SMTP_PASSWORD = os.getenv("AWS_SMTP_PASSWORD")
+AWS_SMTP_HOST = os.getenv("AWS_SMTP_HOST")
+AWS_SMTP_STARTTLS_PORT = os.getenv("AWS_SMTP_STARTTLS_PORT")
+AWS_SMTP_SSL_PORT = os.getenv("AWS_SMTP_SSL_PORT")
+AWS_SMTP_SOURCE_EMAIL = os.getenv("AWS_SMTP_SOURCE_EMAIL")
 
+import ssl
 import cv2
 import gphoto2 as gp
 import numpy as np
@@ -11,9 +24,10 @@ import threading
 from storage import PhotoStorage
 from flask_bcrypt import Bcrypt
 import logging
-from dotenv import load_dotenv
+
 import imageio
 from flask_cors import CORS
+from actions.email import SMTPServer
 
 
 ps = PhotoStorage()
@@ -35,7 +49,11 @@ settings_lock = threading.Lock()
 camera_lock = threading.Lock()
 logger = logging.getLogger("werkzeug")
 bcrypt = Bcrypt(app)
-load_dotenv()
+
+SMTP_SERVER = SMTPServer(
+    AWS_SMTP_USERNAME, AWS_SMTP_PASSWORD, AWS_SMTP_HOST, AWS_SMTP_STARTTLS_PORT
+)
+
 
 if not os.path.exists("images"):
     os.mkdir("images")
@@ -135,6 +153,19 @@ def send_photo():
         ps.set_promotional(photo_id, promotional_consent)
 
     # TODO: Send emails and texts
+    SMTP_SERVER.send_email(
+        AWS_SMTP_SOURCE_EMAIL,
+        emails,
+        "Your MadHacks 2023 Photos",
+        """Your MadHacks 2023 Photos are attached :)
+        Hopefully you're having a great event, let us know any feedback on this photo booth!
+        """,
+        [ps.get_photo_bytes(photo_id, ext="jpeg") for photo_id in photo_ids],
+        photos_ext="jpeg",
+    )
+
+    # TODO: Seems like twilio needs public url of the image, so we need to host it somewhere maybe on a site that instant deletes the image after a view?
+    # But riskier than AWS bc we don't own
 
     return jsonify({"success": True})
 

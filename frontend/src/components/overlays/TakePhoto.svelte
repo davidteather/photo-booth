@@ -7,13 +7,6 @@
   }
 </script>
 
-<div class="join">
-  <button
-    on:click={handleTakePhotoClick}
-    class="btn join-item btn-lg btn-primary">One Photo</button
-  >
-  <button
-    on:click={handleTakePhotoClick}
-    class="btn join-item btn-lg btn-secondary">Three Photos</button
-  >
-</div>
+<button on:click={handleTakePhotoClick} class="btn join-item btn-lg btn-primary">
+  Take Photo
+</button>
