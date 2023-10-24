@@ -112,13 +112,14 @@ def capture(camera, context):
         file_path = gp.check_result(
             gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE, context)
         )
-        camera_file = gp.check_result(
+        camera_file = gp.CameraFile()
+        gp.check_result(
             gp.gp_camera_file_get(
                 camera,
                 file_path.folder,
                 file_path.name,
                 gp.GP_FILE_TYPE_NORMAL,
-                context,
+                camera_file,
             )
         )
         change_config(camera, "imagequality", "Standard")
@@ -180,10 +181,13 @@ def capture_streaming_frame():
         frame_counter += 1
         return jpeg_frame
 
-    with camera_lock:
+    """with camera_lock:
         # Capture the preview
+        #camera_file = gp.check_result(gp.gp_camera_capture_preview(camera, camera_file, context))
+        #file_data = gp.check_result(gp.gp_file_get_data_and_size(camera_file))
         camera_file = gp.check_result(gp.gp_camera_capture_preview(camera, context))
         file_data = gp.check_result(gp.gp_file_get_data_and_size(camera_file))
+
 
     # Convert the raw data to a numpy array and reshape for image display
     image = np.frombuffer(file_data, np.uint8)
@@ -191,7 +195,20 @@ def capture_streaming_frame():
 
     # encode image as jpeg
     _, img_encoded = cv2.imencode(".jpg", image)
-    return img_encoded.tostring()
+    return img_encoded.tostring()"""
+
+    with camera_lock:
+        camera_file = gp.CameraFile()
+        gp.gp_camera_capture_preview(camera, camera_file, context)
+        file_data = camera_file.get_data_and_size()
+
+        # Convert the raw data to a numpy array and reshape for image display
+        image = np.frombuffer(file_data, np.uint8)
+        image = cv2.imdecode(image, 1)
+
+        # encode image as jpeg
+        _, img_encoded = cv2.imencode(".jpg", image)
+        return img_encoded.tostring()
 
 
 @app.route("/stream")
@@ -216,3 +233,6 @@ if __name__ == "__main__":
 
     change_config(camera, "imagesize", "Small")
     change_config(camera, "imagequality", "Standard")
+
+    if not USE_SIMULATED_CAMERA:
+        camera.exit(context)
