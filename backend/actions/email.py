@@ -12,7 +12,7 @@ class SMTPServer:
         self.smtp_server = smtp_server
         self.port = port
         #self.context = ssl.create_default_context()
-        self.context = ssl._create_unverified_context()
+        self.context = ssl._create_unverified_context() # TODO: I think this is bc flask is using a self-signed cert
 
     def send_email(self, from_email, to_emails, subject, body, images_data: list[bytes] = None, photos_ext = "jpeg"):
         # Create a multipart email message
