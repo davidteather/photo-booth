@@ -7,13 +7,12 @@ USE_SIMULATED_CAMERA = os.getenv("USE_SIMULATED_CAMERA", "false").lower() == "tr
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-AWS_IAM_USERNAME = os.getenv("AWS_IAM_USERNAME")
-AWS_SMTP_USERNAME = os.getenv("AWS_SMTP_USERNAME")
-AWS_SMTP_PASSWORD = os.getenv("AWS_SMTP_PASSWORD")
-AWS_SMTP_HOST = os.getenv("AWS_SMTP_HOST")
-AWS_SMTP_STARTTLS_PORT = os.getenv("AWS_SMTP_STARTTLS_PORT")
-AWS_SMTP_SSL_PORT = os.getenv("AWS_SMTP_SSL_PORT")
-AWS_SMTP_SOURCE_EMAIL = os.getenv("AWS_SMTP_SOURCE_EMAIL")
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_STARTTLS_PORT = os.getenv("SMTP_STARTTLS_PORT")
+SMTP_SSL_PORT = os.getenv("SMTP_SSL_PORT")
+SMTP_SOURCE_EMAIL = os.getenv("SMTP_SOURCE_EMAIL")
 
 import ssl
 import cv2
@@ -51,7 +50,7 @@ logger = logging.getLogger("werkzeug")
 bcrypt = Bcrypt(app)
 
 SMTP_SERVER = SMTPServer(
-    AWS_SMTP_USERNAME, AWS_SMTP_PASSWORD, AWS_SMTP_HOST, AWS_SMTP_STARTTLS_PORT
+    SMTP_USERNAME, SMTP_PASSWORD, SMTP_HOST, SMTP_STARTTLS_PORT
 )
 
 
@@ -72,17 +71,6 @@ def check_password():
     if password is None or not bcrypt.check_password_hash(HASHED_PASSWORD, password):
         # Return a 401 status if password is incorrect or not provided
         abort(401)
-
-
-"""TODO:
-- Maybe take photo with RAW&JPEG 
-  - Also evaluate if we even need RAW
-    - Only reason I'd want RAW is if we wanted to manually post process the images
-      after people take the photos
-- Route to text/email image
-    - Associate photo ID with the places it was sent to
-    - Also opt-in to promotional materials
-"""
 
 
 def change_config(camera, config_name, config_value):
@@ -153,9 +141,9 @@ def send_photo():
         ps.add_phones(photo_id, phones)
         ps.set_promotional(photo_id, promotional_consent)
 
-    # TODO: Send emails and texts
+    # TODO: texts?
     SMTP_SERVER.send_email(
-        AWS_SMTP_SOURCE_EMAIL,
+        SMTP_SOURCE_EMAIL,
         emails,
         "Your MadHacks 2023 Photos",
         """Your MadHacks 2023 Photos are attached :)
@@ -224,11 +212,15 @@ def stream():
 
 
 if __name__ == "__main__":
+    ssl_context = None
+    if os.path.exists("./ssl/cert.pem") and os.path.exists("./ssl/key.pem"):
+        ssl_context = ("./ssl/cert.pem", "./ssl/key.pem")
+
     app.run(
         host="0.0.0.0",
         port=8000,
         threaded=True,
-        ssl_context=("./ssl/cert.pem", "./ssl/key.pem"),
+        ssl_context=ssl_context,
     )
 
     change_config(camera, "imagesize", "Small")

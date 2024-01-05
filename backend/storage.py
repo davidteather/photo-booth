@@ -79,5 +79,3 @@ class PhotoStorage:
 
             with open(self.db_path, "w+") as f:
                 json.dump(self.db, f)
-
-    # TODO: Add maybe QR code to photo to link to discord bot or something?

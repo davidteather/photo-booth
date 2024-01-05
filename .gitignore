@@ -3,3 +3,4 @@ rpi-4.pub
 .DS_Store
 sdk
 __pycache__
+.vscode
